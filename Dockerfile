@@ -16,5 +16,8 @@ RUN apk --update add sudo bash krb5 && \
     apk del build-dependencies && \
     rm -rf /var/cache/apk/*
 
-# default command: display Ansible version
 CMD [ "ansible-playbook", "--version" ]
+
+ENV HOME=/root
+ENV UID=0
+ENV GID=0
