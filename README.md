@@ -13,5 +13,8 @@ Based on alpine `3.6`, contains OS packages for OpenSSH client (currently `OpenS
 # Python
 Contains `pip` modules for `ansible` and it's transitive dependencies, in addition to `pywinrm` for Windows target machines and `netaddr` to support the Ansible `ipaddr` filter
 
+# Other requirements
+The `tail` utility is also utilized, this is included by default in the `alpine` base image
+
 ## How it's built
 See https://github.com/capecodes/docker-ansible
