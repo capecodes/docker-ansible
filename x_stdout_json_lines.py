@@ -14,7 +14,10 @@ import time
 import math
 import uuid
 
-# extract the folder for all log files to go to from environment
+# extract a provided UUID used to prefix all outputed lines from this plugin
+# this exists so that the external driver knows the key for which to extract
+# a known line specification of "UUID { json doc }", that's to say a UUID string
+# followed by a space followed by a single line json document
 runner_uuid = os.environ['X_ANSIBLE_RUNNER_UUID']
 
 # captures stdout to a list of strings
