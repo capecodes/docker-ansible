@@ -1,3 +1,6 @@
+# (C) 2017, Cape Codes, <info@cape.codes>
+# Dual licensed with MIT and GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
+
 FROM alpine:3.6
 
 MAINTAINER Cape Codes <info@cape.codes>
@@ -15,6 +18,8 @@ RUN apk --update add sudo bash krb5 && \
     \
     apk del build-dependencies && \
     rm -rf /var/cache/apk/*
+
+COPY x_stdout_json_lines.py /x_ansible_stdout_callback/x_stdout_json_lines.py
 
 CMD [ "ansible-playbook", "--version" ]
 
