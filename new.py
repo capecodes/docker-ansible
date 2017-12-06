@@ -2,6 +2,7 @@
 # Dual licensed with MIT and GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import (absolute_import, division, print_function)
+from pprint import pprint
 from cStringIO import StringIO
 
 __metaclass__ = type
@@ -12,9 +13,6 @@ import json
 import time
 import math
 import uuid
-import pprint
-from datetime import date, datetime
-
 
 # extract a provided UUID used to prefix all outputed lines from this plugin
 # this exists so that the external driver knows the key for which to extract
@@ -68,16 +66,18 @@ class CallbackModule(DefaultCallbackModule):
         self.print_str_lines(stdout_lines, 'stdout')
         self.print_str_lines(stderr_lines, 'stderr')
 
-    def json_serial(self, obj):
+    def json_serial(obj):
         """JSON serializer for objects not serializable by default json code"""
-        if isinstance(obj, uuid.UUID):
-            return obj.__str__
 
-        return obj
+        if isinstance(obj, (datetime, date)):
+            serial = str(obj)
+            return serial
+
+        raise TypeError ("Type %s not serializable" % type(obj))
 
     def print_json(self, obj):
         """Prints a single compact JSON line to stdout for a given object"""
-        printable_json = json.dumps(obj, indent=None, separators=(',', ':'), default=self.json_serial)
+        printable_json = json.dumps(obj, indent=None, separators=(',', ':'), default=json_serial)
         self.print_uuid_prefixed_line(printable_json)
 
     def print_str_lines(self, lines, type):
@@ -87,7 +87,7 @@ class CallbackModule(DefaultCallbackModule):
                 'type': type,
                 'line': line
             }
-            printable_json = json.dumps(obj, indent=None, separators=(',', ':'), default=self.json_serial)
+            printable_json = json.dumps(obj, indent=None, separators=(',', ':'), default=json_serial)
             self.print_uuid_prefixed_line(printable_json)
 
     def print_uuid_prefixed_line(self, str):
@@ -106,33 +106,17 @@ class CallbackModule(DefaultCallbackModule):
 
         # build up and print custom single line json of hook structured information
         self.current_play_id = str(uuid.uuid4())
-        try:
-            self.print_str_lines(['TEST123'], 'stdout')
-            print("START")
-            serialized=play.serialize()
-            print(type(serialized))
-            pprint.pprint(serialized)
-            print("END1")
-
-            
-
-            print(vars(play))
-            print("END2")
-
-            output = {
-                'stage': 'on_play_start',
-                'type': 'play',
-                'epochLong': int(math.floor(time.time() * 1000)),
-                'playId': self.current_play_id,
-                'data': {
-                    'name': play.name
-                },
-                'raw': serialized
-            }
-            del output['raw']['tasks']
-            self.print_json(output)
-        except Exception as e:
-            self.print_str_lines(['ERROR123: ' + e.message], 'stderr')
+        output = {
+            'stage': 'on_play_start',
+            'type': 'play',
+            'epochLong': int(math.floor(time.time() * 1000)),
+            'playId': self.current_play_id,
+            'data': {
+                'name': play.name
+            },
+            'raw': play
+        }
+        self.print_json(output)
 
     def v2_playbook_on_task_start(self, task, is_conditional):
         # run super and capture stdout/stderr
@@ -188,7 +172,8 @@ class CallbackModule(DefaultCallbackModule):
                 'stderr': result._result.get("stderr"),
                 'rc': result._result.get("rc"),
                 'result': result._result
-            }
+            },
+            'raw': result
         }
 
         if 'ansible_facts' in output['data']['result']:
@@ -222,8 +207,10 @@ class CallbackModule(DefaultCallbackModule):
                 'stderr': result._result.get("stderr"),
                 'rc': result._result.get("rc"),
                 'changed': result._result.get("changed"),
-                'result': result._result
-            }
+                'result': result._result,
+                'ignore_errors': ignore_errors
+            },
+            'raw': result
         }
 
         if 'ansible_facts' in output['data']['result']:
@@ -255,7 +242,8 @@ class CallbackModule(DefaultCallbackModule):
                 'error_message': str(result._result.get("msg")),
                 'error_type': 'unreachable',
                 'changed': result._result.get("changed")
-            }
+            },
+            'raw': result
         }
         self.print_json(output)
 
@@ -270,7 +258,23 @@ class CallbackModule(DefaultCallbackModule):
         self.print_str_lines(stderr_lines, 'stderr')
 
         # build up and print custom single line json of hook structured information
-        pass
+        output = {
+            'stage': 'on_task_skipped',
+            'type': 'task',
+            'epochLong': int(math.floor(time.time() * 1000)),
+            'taskId': self.current_task_id,
+            'playId': self.current_play_id,
+            'data': {
+                'host': str(result._host),
+                'task': str(result._task),
+                'success': False,
+                'error_message': str(result._result.get("msg")),
+                'error_type': 'skipped',
+                'changed': result._result.get("changed")
+            },
+            'raw': result
+        }
+        self.print_json(output)
 
     def v2_playbook_on_no_hosts_matched(self):
         # run super and capture stdout/stderr
@@ -283,7 +287,22 @@ class CallbackModule(DefaultCallbackModule):
         self.print_str_lines(stderr_lines, 'stderr')
 
         # build up and print custom single line json of hook structured information
-        pass
+        output = {
+            'stage': 'on_task_no_hosts_matched',
+            'type': 'task',
+            'epochLong': int(math.floor(time.time() * 1000)),
+            'taskId': self.current_task_id,
+            'playId': self.current_play_id,
+            'data': {
+                'host': str(result._host),
+                'task': str(result._task),
+                'success': False,
+                'error_message': str(result._result.get("msg")),
+                'error_type': 'no_hosts_matched',
+                'changed': result._result.get("changed")
+            }
+        }
+        self.print_json(output)
 
     def v2_playbook_on_no_hosts_remaining(self):
         # run super and capture stdout/stderr
@@ -296,7 +315,22 @@ class CallbackModule(DefaultCallbackModule):
         self.print_str_lines(stderr_lines, 'stderr')
 
         # build up and print custom single line json of hook structured information
-        pass
+        output = {
+            'stage': 'on_task_no_hosts_remaining',
+            'type': 'task',
+            'epochLong': int(math.floor(time.time() * 1000)),
+            'taskId': self.current_task_id,
+            'playId': self.current_play_id,
+            'data': {
+                'host': str(result._host),
+                'task': str(result._task),
+                'success': False,
+                'error_message': str(result._result.get("msg")),
+                'error_type': 'no_hosts_remaining',
+                'changed': result._result.get("changed")
+            }
+        }
+        self.print_json(output)
 
     def v2_playbook_on_stats(self, stats):
         # run super and capture stdout/stderr
@@ -311,6 +345,7 @@ class CallbackModule(DefaultCallbackModule):
         # build up and print custom single line json of hook structured information
         pass
 
+    # NOT USED, SEE https://github.com/ansible/ansible/issues/19682
     def v2_playbook_on_cleanup_task_start(self, task):
         # run super and capture stdout/stderr
         with CapturingStdout() as stdout_lines:
@@ -335,7 +370,20 @@ class CallbackModule(DefaultCallbackModule):
         self.print_str_lines(stderr_lines, 'stderr')
 
         # build up and print custom single line json of hook structured information
-        pass
+        output = {
+            'stage': 'on_handler_task_start',
+            'type': 'handler_task',
+            'epochLong': int(math.floor(time.time() * 1000)),
+            'taskId': self.current_task_id,
+            'playId': self.current_play_id,
+            'data': {
+                'name': task.name,
+                'action': task._attributes.get("action"),
+                'attributes': task._attributes
+            },
+            'raw': task
+        }
+        self.print_json(output)
 
     def v2_on_file_diff(self, result):
         # run super and capture stdout/stderr
@@ -361,7 +409,15 @@ class CallbackModule(DefaultCallbackModule):
         self.print_str_lines(stderr_lines, 'stderr')
 
         # build up and print custom single line json of hook structured information
-        pass
+        output = {
+            'stage': 'item_ok',
+            'type': 'item',
+            'epochLong': int(math.floor(time.time() * 1000)),
+            'taskId': self.current_task_id,
+            'playId': self.current_play_id,
+            'raw': result
+        }
+        self.print_json(output)
 
     def v2_runner_item_on_failed(self, result):
         # run super and capture stdout/stderr
@@ -374,7 +430,15 @@ class CallbackModule(DefaultCallbackModule):
         self.print_str_lines(stderr_lines, 'stderr')
 
         # build up and print custom single line json of hook structured information
-        pass
+        output = {
+            'stage': 'item_failed',
+            'type': 'item',
+            'epochLong': int(math.floor(time.time() * 1000)),
+            'taskId': self.current_task_id,
+            'playId': self.current_play_id,
+            'raw': result
+        }
+        self.print_json(output)
 
     def v2_runner_item_on_skipped(self, result):
         # run super and capture stdout/stderr
@@ -387,7 +451,15 @@ class CallbackModule(DefaultCallbackModule):
         self.print_str_lines(stderr_lines, 'stderr')
 
         # build up and print custom single line json of hook structured information
-        pass
+        output = {
+            'stage': 'item_skipped',
+            'type': 'item',
+            'epochLong': int(math.floor(time.time() * 1000)),
+            'taskId': self.current_task_id,
+            'playId': self.current_play_id,
+            'raw': result
+        }
+        self.print_json(output)
 
     def v2_playbook_on_include(self, included_file):
         # run super and capture stdout/stderr
@@ -400,7 +472,15 @@ class CallbackModule(DefaultCallbackModule):
         self.print_str_lines(stderr_lines, 'stderr')
 
         # build up and print custom single line json of hook structured information
-        pass
+        output = {
+            'stage': 'on_playbook_include',
+            'type': 'playbook',
+            'epochLong': int(math.floor(time.time() * 1000)),
+            'taskId': self.current_task_id,
+            'playId': self.current_play_id,
+            'included_file': included_file
+        }
+        self.print_json(output)
 
     def v2_playbook_on_start(self, playbook):
         # run super and capture stdout/stderr
@@ -413,7 +493,13 @@ class CallbackModule(DefaultCallbackModule):
         self.print_str_lines(stderr_lines, 'stderr')
 
         # build up and print custom single line json of hook structured information
-        pass
+        output = {
+            'stage': 'on_playbook_start',
+            'type': 'playbook',
+            'epochLong': int(math.floor(time.time() * 1000)),
+            'raw': playbook
+        }
+        self.print_json(output)
 
     def v2_runner_retry(self, result):
         # run super and capture stdout/stderr
