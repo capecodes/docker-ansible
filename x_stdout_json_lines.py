@@ -94,6 +94,10 @@ class CallbackModule(DefaultCallbackModule):
         """Prints a single line with the runner uuid prefix"""
         print(runner_uuid + ' ' + str)
 
+    def map_task(self, task):
+        print("serializing...")
+        return task.serialize()
+
     def v2_playbook_on_play_start(self, play):
         # run super and capture stdout/stderr
         with CapturingStdout() as stdout_lines:
@@ -114,9 +118,11 @@ class CallbackModule(DefaultCallbackModule):
             pprint.pprint(serialized)
             print("END1")
 
+            serialized['tasks'] = map(self.map_task, serialized['tasks'])
+
             
 
-            print(vars(play))
+            # print(vars(play))
             print("END2")
 
             output = {
@@ -129,7 +135,7 @@ class CallbackModule(DefaultCallbackModule):
                 },
                 'raw': serialized
             }
-            del output['raw']['tasks']
+            # del output['raw']['tasks']
             self.print_json(output)
         except Exception as e:
             self.print_str_lines(['ERROR123: ' + e.message], 'stderr')
