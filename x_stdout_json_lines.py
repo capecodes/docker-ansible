@@ -46,6 +46,7 @@ class CapturingStderr(list):
 
 # extend the default stdout callback module
 from ansible.plugins.callback.default import CallbackModule as DefaultCallbackModule
+from ansible.playbook.base import Base
 
 class CallbackModule(DefaultCallbackModule):
 
@@ -72,7 +73,8 @@ class CallbackModule(DefaultCallbackModule):
         """JSON serializer for objects not serializable by default json code"""
         if isinstance(obj, uuid.UUID):
             return obj.__str__
-
+        elif isinstance(obj, Base):
+            return obj.serialize()
         return obj
 
     def print_json(self, obj):
@@ -94,10 +96,6 @@ class CallbackModule(DefaultCallbackModule):
         """Prints a single line with the runner uuid prefix"""
         print(runner_uuid + ' ' + str)
 
-    def map_task(self, task):
-        print("serializing...")
-        return task.serialize()
-
     def v2_playbook_on_play_start(self, play):
         # run super and capture stdout/stderr
         with CapturingStdout() as stdout_lines:
@@ -110,35 +108,18 @@ class CallbackModule(DefaultCallbackModule):
 
         # build up and print custom single line json of hook structured information
         self.current_play_id = str(uuid.uuid4())
-        try:
-            self.print_str_lines(['TEST123'], 'stdout')
-            print("START")
-            serialized=play.serialize()
-            print(type(serialized))
-            pprint.pprint(serialized)
-            print("END1")
 
-            serialized['tasks'] = map(self.map_task, serialized['tasks'])
-
-            
-
-            # print(vars(play))
-            print("END2")
-
-            output = {
-                'stage': 'on_play_start',
-                'type': 'play',
-                'epochLong': int(math.floor(time.time() * 1000)),
-                'playId': self.current_play_id,
-                'data': {
-                    'name': play.name
-                },
-                'raw': serialized
-            }
-            # del output['raw']['tasks']
-            self.print_json(output)
-        except Exception as e:
-            self.print_str_lines(['ERROR123: ' + e.message], 'stderr')
+        output = {
+            'stage': 'on_play_start',
+            'type': 'play',
+            'epochLong': int(math.floor(time.time() * 1000)),
+            'playId': self.current_play_id,
+            'data': {
+                'name': play.name
+            },
+            'raw': play.serialize()
+        }
+        self.print_json(output)
 
     def v2_playbook_on_task_start(self, task, is_conditional):
         # run super and capture stdout/stderr
