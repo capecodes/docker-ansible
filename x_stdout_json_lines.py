@@ -47,6 +47,8 @@ class CapturingStderr(list):
 # extend the default stdout callback module
 from ansible.plugins.callback.default import CallbackModule as DefaultCallbackModule
 from ansible.playbook.base import Base
+from ansible.executor.task_result import TaskResult
+from ansible.inventory.host import Host
 
 class CallbackModule(DefaultCallbackModule):
 
@@ -75,12 +77,34 @@ class CallbackModule(DefaultCallbackModule):
             return obj.__str__
         elif isinstance(obj, Base):
             return obj.serialize()
+        elif isinstance(obj, Host):
+            return {
+                'name': obj.name,
+                'uuid': obj._uuid,
+                # 'groups': obj.groups, // groups causes circular reference
+                'address': obj.address,
+                'implicit': obj.implicit,
+                'vars': obj.vars
+            }
+        elif isinstance(obj, TaskResult):
+            return {
+                'host': obj._host
+                ,
+                'task': obj._task
+                ,
+                'result': obj._result
+                ,
+                'task_fields': obj._task_fields
+            }
         return obj
 
     def print_json(self, obj):
         """Prints a single compact JSON line to stdout for a given object"""
-        printable_json = json.dumps(obj, indent=None, separators=(',', ':'), default=self.json_serial)
-        self.print_uuid_prefixed_line(printable_json)
+        try:
+            printable_json = json.dumps(obj, indent=None, separators=(',', ':'), default=self.json_serial)
+            self.print_uuid_prefixed_line(printable_json)
+        except Exception as e:
+            self.print_str_lines(['ERROR/print_json: ' + e.message], 'stderr')
 
     def print_str_lines(self, lines, type):
         """Prints a single compact JSON line to stdout for a given stdout/stderr string"""
@@ -117,7 +141,7 @@ class CallbackModule(DefaultCallbackModule):
             'data': {
                 'name': play.name
             },
-            'raw': play.serialize()
+            'raw': play
         }
         self.print_json(output)
 
@@ -175,9 +199,11 @@ class CallbackModule(DefaultCallbackModule):
                 'stderr': result._result.get("stderr"),
                 'rc': result._result.get("rc"),
                 'result': result._result
-            }
+            },
+            'raw': result
         }
 
+        # FIXME .. do we want this?
         if 'ansible_facts' in output['data']['result']:
             del output['data']['result']['ansible_facts']
 
@@ -210,9 +236,11 @@ class CallbackModule(DefaultCallbackModule):
                 'rc': result._result.get("rc"),
                 'changed': result._result.get("changed"),
                 'result': result._result
-            }
+            },
+            'raw': result
         }
 
+        # FIXME .. do we want this?
         if 'ansible_facts' in output['data']['result']:
             del output['data']['result']['ansible_facts']
             
@@ -242,7 +270,8 @@ class CallbackModule(DefaultCallbackModule):
                 'error_message': str(result._result.get("msg")),
                 'error_type': 'unreachable',
                 'changed': result._result.get("changed")
-            }
+            },
+            'raw': result
         }
         self.print_json(output)
 
