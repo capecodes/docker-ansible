@@ -275,6 +275,7 @@ class CallbackModule(DefaultCallbackModule):
         }
         self.print_json(output)
 
+    # hook executed when a task is skipped via conditions unmet on a task definition
     def v2_runner_on_skipped(self, result):
         # run super and capture stdout/stderr
         with CapturingStdout() as stdout_lines:
@@ -286,7 +287,23 @@ class CallbackModule(DefaultCallbackModule):
         self.print_str_lines(stderr_lines, 'stderr')
 
         # build up and print custom single line json of hook structured information
-        pass
+        output = {
+            'stage': 'on_task_end',
+            'type': 'task',
+            'epochLong': int(math.floor(time.time() * 1000)),
+            'taskId': self.current_task_id,
+            'playId': self.current_play_id,
+            'data': {
+                'host': str(result._host),
+                'task': str(result._task),
+                'success': False,
+                'error_message': str(result._result.get("msg")),
+                'error_type': 'skipped',
+                'changed': result._result.get("changed")
+            },
+            'raw': result
+        }
+        self.print_json(output)
 
     def v2_playbook_on_no_hosts_matched(self):
         # run super and capture stdout/stderr
@@ -299,7 +316,17 @@ class CallbackModule(DefaultCallbackModule):
         self.print_str_lines(stderr_lines, 'stderr')
 
         # build up and print custom single line json of hook structured information
-        pass
+        output = {
+            'stage': 'on_play_end',
+            'type': 'play',
+            'epochLong': int(math.floor(time.time() * 1000)),
+            'playId': self.current_play_id,
+            'data': {
+                'success': False,
+                'error_type': 'no_hosts_matched',
+            }
+        }
+        self.print_json(output)
 
     def v2_playbook_on_no_hosts_remaining(self):
         # run super and capture stdout/stderr
@@ -327,6 +354,7 @@ class CallbackModule(DefaultCallbackModule):
         # build up and print custom single line json of hook structured information
         pass
 
+    # never actually used, see https://github.com/ansible/ansible/issues/19682
     def v2_playbook_on_cleanup_task_start(self, task):
         # run super and capture stdout/stderr
         with CapturingStdout() as stdout_lines:
@@ -351,6 +379,21 @@ class CallbackModule(DefaultCallbackModule):
         self.print_str_lines(stderr_lines, 'stderr')
 
         # build up and print custom single line json of hook structured information
+        self.current_task_id = str(uuid.uuid4())
+        output = {
+            'stage': 'on_task_start',
+            'type': 'handler_task',
+            'epochLong': int(math.floor(time.time() * 1000)),
+            'taskId': self.current_task_id,
+            'playId': self.current_play_id,
+            'data': {
+                'name': task.name,
+                'action': task._attributes.get("action"),
+                'attributes': task._attributes
+            },
+            'raw': task
+        }
+        self.print_json(output)
         pass
 
     def v2_on_file_diff(self, result):
