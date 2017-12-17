@@ -15,7 +15,6 @@ import uuid
 import pprint
 from datetime import date, datetime
 
-
 # extract a provided UUID used to prefix all outputed lines from this plugin
 # this exists so that the external driver knows the key for which to extract
 # a known line specification of "UUID { json doc }", that's to say a UUID string
@@ -133,17 +132,30 @@ class CallbackModule(DefaultCallbackModule):
         # build up and print custom single line json of hook structured information
         self.current_play_id = str(uuid.uuid4())
 
-        output = {
-            'stage': 'on_play_start',
-            'type': 'play',
-            'epochLong': int(math.floor(time.time() * 1000)),
-            'playId': self.current_play_id,
-            'data': {
-                'name': play.name
-            },
-            'raw': play
-        }
-        self.print_json(output)
+        try:
+
+            output = {
+                'stage': 'on_play_start',
+                'type': 'play',
+                'epochLong': int(math.floor(time.time() * 1000)),
+                'playId': self.current_play_id,
+                'data': {
+                    'name': play.name
+                },
+                'raw': play.serialize()
+            }
+
+            # remove unused data
+            if output['raw']['tasks']:
+                del output['raw']['tasks']
+
+            if output['raw']['handlers']:
+                del output['raw']['handlers']
+
+            self.print_json(output)
+
+        except Exception as e:
+            self.print_str_lines(['ERROR/v2_playbook_on_play_start: ' + e.message], 'stderr')
 
     def v2_playbook_on_task_start(self, task, is_conditional):
         # run super and capture stdout/stderr
@@ -157,153 +169,188 @@ class CallbackModule(DefaultCallbackModule):
 
         # build up and print custom single line json of hook structured information
         self.current_task_id = str(uuid.uuid4())
-        output = {
-            'stage': 'on_task_start',
-            'type': 'task',
-            'epochLong': int(math.floor(time.time() * 1000)),
-            'taskId': self.current_task_id,
-            'playId': self.current_play_id,
-            'data': {
-                'name': task.name,
-                'action': task._attributes.get("action"),
-                'attributes': task._attributes,
-                'is_conditional': is_conditional
-            },
-            'raw': task
-        }
-        self.print_json(output)
 
-    def v2_runner_on_ok(self, result, **kwargs):
+        try:
+
+            output = {
+                'stage': 'on_task_start',
+                'type': 'task',
+                'epochLong': int(math.floor(time.time() * 1000)),
+                'taskId': self.current_task_id,
+                'playId': self.current_play_id,
+                'data': {
+                    'name': task.name,
+                    'action': task._attributes.get("action"),
+                    'attributes': task._attributes,
+                    'is_conditional': is_conditional
+                },
+                'raw': task.serialize()
+            }
+
+            self.print_json(output)
+
+        except Exception as e:
+            self.print_str_lines(['ERROR/v2_playbook_on_task_start: ' + e.message], 'stderr')
+
+    def v2_runner_on_ok(self, raw_result, **kwargs):
         # run super and capture stdout/stderr
         with CapturingStdout() as stdout_lines:
             with CapturingStderr() as stderr_lines:
-                self.super_ref.v2_runner_on_ok(result, **kwargs)
+                self.super_ref.v2_runner_on_ok(raw_result, **kwargs)
 
         # print stdout/stderr as wrapped up single line json documents
         self.print_str_lines(stdout_lines, 'stdout')
         self.print_str_lines(stderr_lines, 'stderr')
 
         # build up and print custom single line json of hook structured information
-        output = {
-            'stage': 'on_task_end',
-            'type': 'task',
-            'epochLong': int(math.floor(time.time() * 1000)),
-            'taskId': self.current_task_id,
-            'playId': self.current_play_id,
-            'data': {
-                'host': str(result._host),
-                'task': str(result._task),
-                'success': True,
-                'changed': result._result.get("changed"),
-                'stdout': result._result.get("stdout"),
-                'stderr': result._result.get("stderr"),
-                'rc': result._result.get("rc"),
-                'result': result._result
-            },
-            'raw': result
-        }
 
-        # FIXME .. do we want this?
-        if 'ansible_facts' in output['data']['result']:
-            del output['data']['result']['ansible_facts']
+        try:
+            # TaskResult has no serialize method, it has a custom clean_copy() instead
+            result = raw_result.clean_copy()
 
-        self.print_json(output)
+            output = {
+                'stage': 'on_task_end',
+                'type': 'success',
+                'epochLong': int(math.floor(time.time() * 1000)),
+                'taskId': self.current_task_id,
+                'playId': self.current_play_id,
+                'data': {
+                    'host': str(result._host),
+                    'task': str(result._task),
+                    'success': True,
+                    'changed': result._result.get("changed"),
+                    'stdout': result._result.get("stdout"),
+                    'stderr': result._result.get("stderr"),
+                    'rc': result._result.get("rc"),
+                    'result': result._result
+                }
+            }
 
-    def v2_runner_on_failed(self, result, ignore_errors=False):
+            if 'ansible_facts' in output['data']['result']:
+                del output['data']['result']['ansible_facts']
+
+            self.print_json(output)
+
+        except Exception as e:
+            self.print_str_lines(['ERROR/v2_runner_on_ok: ' + e.message], 'stderr')
+
+    def v2_runner_on_failed(self, raw_result, ignore_errors=False):
         # run super and capture stdout/stderr
         with CapturingStdout() as stdout_lines:
             with CapturingStderr() as stderr_lines:
-                self.super_ref.v2_runner_on_failed(result, ignore_errors)
+                self.super_ref.v2_runner_on_failed(raw_result, ignore_errors)
 
         # print stdout/stderr as wrapped up single line json documents
         self.print_str_lines(stdout_lines, 'stdout')
         self.print_str_lines(stderr_lines, 'stderr')
 
         # build up and print custom single line json of hook structured information
-        output = {
-            'stage': 'on_task_end',
-            'type': 'task',
-            'epochLong': int(math.floor(time.time() * 1000)),
-            'taskId': self.current_task_id,
-            'playId': self.current_play_id,
-            'data': {
-                'host': str(result._host),
-                'task': str(result._task),
-                'success': False,
-                'error_message': str(result._result.get("msg")),
-                'stdout': result._result.get("stdout"),
-                'stderr': result._result.get("stderr"),
-                'rc': result._result.get("rc"),
-                'changed': result._result.get("changed"),
-                'result': result._result
-            },
-            'raw': result
-        }
 
-        # FIXME .. do we want this?
-        if 'ansible_facts' in output['data']['result']:
-            del output['data']['result']['ansible_facts']
-            
-        self.print_json(output)
+        try:
+            # TaskResult has no serialize method, it has a custom clean_copy() instead
+            result = raw_result.clean_copy()
 
-    def v2_runner_on_unreachable(self, result):
+            output = {
+                'stage': 'on_task_end',
+                'type': 'failed',
+                'epochLong': int(math.floor(time.time() * 1000)),
+                'taskId': self.current_task_id,
+                'playId': self.current_play_id,
+                'data': {
+                    'host': str(result._host),
+                    'task': str(result._task),
+                    'success': False,
+                    'error_message': str(result._result.get("msg")),
+                    'stdout': result._result.get("stdout"),
+                    'stderr': result._result.get("stderr"),
+                    'rc': result._result.get("rc"),
+                    'changed': result._result.get("changed"),
+                    'result': result._result
+                }
+            }
+
+            if 'ansible_facts' in output['data']['result']:
+                del output['data']['result']['ansible_facts']
+                
+            self.print_json(output)
+
+        except Exception as e:
+            self.print_str_lines(['ERROR/v2_runner_on_failed: ' + e.message], 'stderr')
+
+    def v2_runner_on_unreachable(self, raw_result):
         # run super and capture stdout/stderr
         with CapturingStdout() as stdout_lines:
             with CapturingStderr() as stderr_lines:
-                self.super_ref.v2_runner_on_unreachable(result)
+                self.super_ref.v2_runner_on_unreachable(raw_result)
 
         # print stdout/stderr as wrapped up single line json documents
         self.print_str_lines(stdout_lines, 'stdout')
         self.print_str_lines(stderr_lines, 'stderr')
 
         # build up and print custom single line json of hook structured information
-        output = {
-            'stage': 'on_task_end',
-            'type': 'task',
-            'epochLong': int(math.floor(time.time() * 1000)),
-            'taskId': self.current_task_id,
-            'playId': self.current_play_id,
-            'data': {
-                'host': str(result._host),
-                'task': str(result._task),
-                'success': False,
-                'error_message': str(result._result.get("msg")),
-                'error_type': 'unreachable',
-                'changed': result._result.get("changed")
-            },
-            'raw': result
-        }
-        self.print_json(output)
+
+        try:
+            # TaskResult has no serialize method, it has a custom clean_copy() instead
+            result = raw_result.clean_copy()
+
+            output = {
+                'stage': 'on_task_end',
+                'type': 'unreachable',
+                'epochLong': int(math.floor(time.time() * 1000)),
+                'taskId': self.current_task_id,
+                'playId': self.current_play_id,
+                'data': {
+                    'host': str(result._host),
+                    'task': str(result._task),
+                    'success': False,
+                    'error_message': str(result._result.get("msg")),
+                    'error_type': 'unreachable',
+                    'changed': result._result.get("changed")
+                }
+            }
+
+            self.print_json(output)
+
+        except Exception as e:
+            self.print_str_lines(['ERROR/v2_runner_on_ok: ' + e.message], 'stderr')
 
     # hook executed when a task is skipped via conditions unmet on a task definition
-    def v2_runner_on_skipped(self, result):
+    def v2_runner_on_skipped(self, raw_result):
         # run super and capture stdout/stderr
         with CapturingStdout() as stdout_lines:
             with CapturingStderr() as stderr_lines:
-                self.super_ref.v2_runner_on_skipped(result)
+                self.super_ref.v2_runner_on_skipped(raw_result)
 
         # print stdout/stderr as wrapped up single line json documents
         self.print_str_lines(stdout_lines, 'stdout')
         self.print_str_lines(stderr_lines, 'stderr')
 
         # build up and print custom single line json of hook structured information
-        output = {
-            'stage': 'on_task_end',
-            'type': 'task',
-            'epochLong': int(math.floor(time.time() * 1000)),
-            'taskId': self.current_task_id,
-            'playId': self.current_play_id,
-            'data': {
-                'host': str(result._host),
-                'task': str(result._task),
-                'success': False,
-                'error_message': str(result._result.get("msg")),
-                'error_type': 'skipped',
-                'changed': result._result.get("changed")
-            },
-            'raw': result
-        }
-        self.print_json(output)
+
+        try:
+            # TaskResult has no serialize method, it has a custom clean_copy() instead
+            result = raw_result.clean_copy()
+
+            output = {
+                'stage': 'on_task_end',
+                'type': 'skipped',
+                'epochLong': int(math.floor(time.time() * 1000)),
+                'taskId': self.current_task_id,
+                'playId': self.current_play_id,
+                'data': {
+                    'host': str(result._host),
+                    'task': str(result._task),
+                    'success': False,
+                    'error_message': str(result._result.get("msg")),
+                    'error_type': 'skipped',
+                    'changed': result._result.get("changed")
+                }
+            }
+
+            self.print_json(output)
+
+        except Exception as e:
+            self.print_str_lines(['ERROR/v2_runner_on_skipped: ' + e.message], 'stderr')
 
     def v2_playbook_on_no_hosts_matched(self):
         # run super and capture stdout/stderr
@@ -381,7 +428,7 @@ class CallbackModule(DefaultCallbackModule):
         # build up and print custom single line json of hook structured information
         self.current_task_id = str(uuid.uuid4())
         output = {
-            'stage': 'on_task_start',
+            'stage': 'on_handler_task_start',
             'type': 'handler_task',
             'epochLong': int(math.floor(time.time() * 1000)),
             'taskId': self.current_task_id,
