@@ -363,17 +363,20 @@ class CallbackModule(DefaultCallbackModule):
         self.print_str_lines(stderr_lines, 'stderr')
 
         # build up and print custom single line json of hook structured information
-        output = {
-            'stage': 'on_play_end',
-            'type': 'play',
-            'epochLong': int(math.floor(time.time() * 1000)),
-            'playId': self.current_play_id,
-            'data': {
-                'success': False,
-                'error_type': 'no_hosts_matched',
+
+        try:
+
+            output = {
+                'stage': 'on_play_end',
+                'type': 'no_hosts_matched',
+                'epochLong': int(math.floor(time.time() * 1000)),
+                'playId': self.current_play_id
             }
-        }
-        self.print_json(output)
+
+            self.print_json(output)
+
+        except Exception as e:
+            self.print_str_lines(['ERROR/v2_playbook_on_no_hosts_matched: ' + e.message], 'stderr')
 
     def v2_playbook_on_no_hosts_remaining(self):
         # run super and capture stdout/stderr
@@ -386,7 +389,19 @@ class CallbackModule(DefaultCallbackModule):
         self.print_str_lines(stderr_lines, 'stderr')
 
         # build up and print custom single line json of hook structured information
-        pass
+        try:
+
+            output = {
+                'stage': 'on_play_end',
+                'type': 'no_hosts_remaining',
+                'epochLong': int(math.floor(time.time() * 1000)),
+                'playId': self.current_play_id
+            }
+
+            self.print_json(output)
+
+        except Exception as e:
+            self.print_str_lines(['ERROR/v2_playbook_on_no_hosts_remaining: ' + e.message], 'stderr')
 
     def v2_playbook_on_stats(self, stats):
         # run super and capture stdout/stderr
