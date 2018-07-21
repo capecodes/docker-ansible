@@ -5,8 +5,12 @@
 
 # see https://pypi.python.org/pypi/ansible
 
-MAJOR_VERSION=2.3
-EXACT_VERSION=2.3.3.0
+MAJOR_VERSION=2.6
+EXACT_VERSION=2.6.1
 
 ./build.sh ${EXACT_VERSION}
+./push.sh ${MAJOR_VERSION} ${EXACT_VERSION}
+
+MAJOR_VERSION=latest
+
 ./push.sh ${MAJOR_VERSION} ${EXACT_VERSION}
