@@ -5,8 +5,12 @@
 
 # see https://pypi.python.org/pypi/ansible
 
-MAJOR_VERSION=2.4
-EXACT_VERSION=2.4.6.0
+MAJOR_VERSION=2.7
+EXACT_VERSION=2.7.2
 
-./build.sh ${EXACT_VERSION} Dockerfile_2.4_down
-#./push.sh ${MAJOR_VERSION} ${EXACT_VERSION}
+./build.sh ${EXACT_VERSION} Dockerfile_2.5_up
+./push.sh ${MAJOR_VERSION} ${EXACT_VERSION}
+
+MAJOR_VERSION=latest
+
+./push.sh ${MAJOR_VERSION} ${EXACT_VERSION}
