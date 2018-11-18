@@ -6,5 +6,6 @@
 set -e
 
 ANSIBLE_VERSION="$1"
+DOCKERFILE="$2"
 
-docker build --build-arg ANSIBLE_PIP_VERSION=${ANSIBLE_VERSION} -t capecodes/ansible:${ANSIBLE_VERSION} .
+docker build --build-arg ANSIBLE_PIP_VERSION=${ANSIBLE_VERSION} -t capecodes/ansible:${ANSIBLE_VERSION} --file ${DOCKERFILE} .

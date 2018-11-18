@@ -8,5 +8,5 @@
 MAJOR_VERSION=2.2
 EXACT_VERSION=2.2.3.0
 
-./build.sh ${EXACT_VERSION}
+./build.sh ${EXACT_VERSION} Dockerfile_2.4_down
 ./push.sh ${MAJOR_VERSION} ${EXACT_VERSION}
