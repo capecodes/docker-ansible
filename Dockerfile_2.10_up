@@ -1,0 +1,32 @@
+# (C) 2017, Cape Codes, <info@cape.codes>
+# Dual licensed with MIT and GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
+
+FROM alpine:3.12
+
+MAINTAINER Cape Codes <info@cape.codes>
+
+# see https://pypi.python.org/pypi/ansible for published pip versions of ansible
+
+ARG ANSIBLE_PIP_VERSION=2.10.0
+
+RUN apk --update add sudo bash krb5 git expect python3 py3-pip openssl ca-certificates sshpass openssh-client less vim nano && \
+    apk --update add --virtual build-dependencies python3-dev libffi-dev openssl-dev build-base && \
+    pip3 install --upgrade pip setuptools && \
+    pip3 install ansible==${ANSIBLE_PIP_VERSION} pywinrm netaddr docker-py httplib2 && \
+    apk del build-dependencies && \
+    rm -rf /var/cache/apk/*
+
+# Create a group and user
+RUN addgroup -g 1001 ansible && adduser -D -u 1000 -h /home/ansible -G ansible ansible
+
+# Tell docker that all future commands should run as the appuser user
+USER ansible:ansible
+WORKDIR /home/ansible
+
+COPY x_stdout_json_lines.py /x_ansible_stdout_callback/x_stdout_json_lines.py
+
+CMD [ "ansible-playbook", "--version" ]
+
+ENV HOME=/home/ansible
+ENV UID=100
+ENV GID=101
