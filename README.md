@@ -1,7 +1,8 @@
 ## Versions
 
 # Current
-* `latest`, `2.7`, `2.7.2`
+* `latest`, `2.10`, `2.10.0`
+* `2.7`, `2.7.2`,
 * `2.6`, `2.6.8`,
 * `2.5`, `2.5.11`
 * `2.4`, `2.4.6.0`
@@ -17,7 +18,7 @@
 ## What it contains
 
 # OS
-Based on alpine `3.8`, contains OS packages for OpenSSH client (currently `OpenSSH_7.7p1-r3`), git, expect, CA certificates, python2, bash, vim, less, nano, krb5 (kerberos, to support Windows target machines) and any transitive dependencies those bring in.
+Based on alpine `3.12`, contains OS packages for OpenSSH client (currently `OpenSSH_8.3p1`), git, expect, CA certificates, python2, bash, vim, less, nano, krb5 (kerberos, to support Windows target machines) and any transitive dependencies those bring in.
 
 # Python
 Contains `pip` modules for `ansible` and it's transitive dependencies, in addition to `pywinrm` for Windows target machines and `netaddr` to support the Ansible `ipaddr` filter, `httplib2` and `docker-py`

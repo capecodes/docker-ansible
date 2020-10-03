@@ -9,7 +9,7 @@ MAINTAINER Cape Codes <info@cape.codes>
 
 ARG ANSIBLE_PIP_VERSION=2.10.0
 
-RUN apk --update add sudo bash krb5 git expect python3 py3-pip openssl ca-certificates sshpass openssh-client less vim nano && \
+RUN apk --update add sudo bash krb5 git expect python3 py3-pip openssl ca-certificates sshpass openssh-client && \
     apk --update add --virtual build-dependencies python3-dev libffi-dev openssl-dev build-base && \
     pip3 install --upgrade pip setuptools && \
     pip3 install ansible==${ANSIBLE_PIP_VERSION} pywinrm netaddr docker-py httplib2 && \
@@ -20,13 +20,17 @@ RUN apk --update add sudo bash krb5 git expect python3 py3-pip openssl ca-certif
 RUN addgroup -g 1001 ansible && adduser -D -u 1000 -h /home/ansible -G ansible ansible
 
 # Tell docker that all future commands should run as the appuser user
-USER ansible:ansible
 WORKDIR /home/ansible
 
-COPY x_stdout_json_lines.py /x_ansible_stdout_callback/x_stdout_json_lines.py
+COPY x_stdout_json_lines.py /home/ansible/.ansible/plugins/callback/x_stdout_json_lines.py
+
+RUN chown -R ansible:ansible /home/ansible
 
 CMD [ "ansible-playbook", "--version" ]
 
+ENV ANSIBLE_STDOUT_CALLBACK=x_stdout_json_lines
 ENV HOME=/home/ansible
 ENV UID=100
 ENV GID=101
+
+USER ansible:ansible
