@@ -7,13 +7,13 @@ MAINTAINER Cape Codes <info@cape.codes>
 
 # see https://pypi.python.org/pypi/ansible for published pip versions of ansible
 
-ARG ANSIBLE_PIP_VERSION=2.10.0
+ARG ANSIBLE_PIP_VERSION=2.10.4
 
-RUN apk --update add sudo bash krb5 git expect python3 py3-pip openssl ca-certificates sshpass openssh-client && \
+RUN apk --update add bash krb5 expect python3 py3-pip openssl ca-certificates sshpass openssh-client su-exec && \
     apk --update add --virtual build-dependencies python3-dev libffi-dev openssl-dev build-base && \
     pip3 install --upgrade pip setuptools && \
     pip3 install ansible==${ANSIBLE_PIP_VERSION} pywinrm netaddr docker-py httplib2 && \
-    apk del build-dependencies && \
+    apk del build-dependencies build-base openssl-dev libffi-dev python3-dev && \
     rm -rf /var/cache/apk/*
 
 # Create a group and user
