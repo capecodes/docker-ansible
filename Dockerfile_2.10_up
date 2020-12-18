@@ -9,10 +9,10 @@ MAINTAINER Cape Codes <info@cape.codes>
 
 ARG ANSIBLE_PIP_VERSION=2.10.4
 
-RUN apk --update add bash krb5 expect python3 py3-pip openssl ca-certificates sshpass openssh-client su-exec && \
+RUN apk --update add krb5 python3 py3-pip openssl ca-certificates openssh-client su-exec && \
     apk --update add --virtual build-dependencies python3-dev libffi-dev openssl-dev build-base && \
-    pip3 install --upgrade pip setuptools && \
-    pip3 install ansible==${ANSIBLE_PIP_VERSION} pywinrm netaddr docker-py httplib2 && \
+    pip3 install --no-cache-dir --upgrade pip setuptools && \
+    pip3 install --no-cache-dir ansible==${ANSIBLE_PIP_VERSION} pywinrm netaddr docker-py httplib2 && \
     apk del build-dependencies build-base openssl-dev libffi-dev python3-dev && \
     rm -rf /var/cache/apk/*
 
@@ -30,7 +30,7 @@ CMD [ "ansible-playbook", "--version" ]
 
 ENV ANSIBLE_STDOUT_CALLBACK=x_stdout_json_lines
 ENV HOME=/home/ansible
-ENV UID=100
-ENV GID=101
+ENV UID=1000
+ENV GID=1001
 
 USER ansible:ansible
