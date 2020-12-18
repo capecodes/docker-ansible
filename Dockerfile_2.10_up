@@ -23,6 +23,7 @@ RUN addgroup -g 1001 ansible && adduser -D -u 1000 -h /home/ansible -G ansible a
 WORKDIR /home/ansible
 
 COPY x_stdout_json_lines.py /home/ansible/.ansible/plugins/callback/x_stdout_json_lines.py
+COPY ansible.cfg /home/ansible/.ansible.cfg
 
 RUN chown -R ansible:ansible /home/ansible
 
